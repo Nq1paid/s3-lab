@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S³ LAB</title>
+<meta name="description" content="Futures backtesting and robustness engine.">
+<link rel="stylesheet" href="app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23000'/><text x='7' y='25' font-family='Times' font-size='26' fill='%23fff'>S</text></svg>">
+</head>
+<body>
+
+<header id="top">
+  <div class="mark" title="S3 LAB">
+    <span class="s">S</span><span class="cube">3</span>
+    <span class="ver"><b>v0.1</b><i>LAB</i></span>
+  </div>
+  <div id="instruments"></div>
+
+  <div id="topmeta">
+    <div class="pair"><span class="label">Strategy</span><span class="val" id="m-strategy">—</span></div>
+    <div class="pair"><span class="label">Run /</span><span class="val num" id="m-run">—</span></div>
+    <div id="engine" title="Is the engine running on your machine?">
+      <span class="dot" id="enginedot"></span><span class="label" id="enginetext">CHECKING</span>
+    </div>
+    <span id="clock" class="num">—</span>
+  </div>
+</header>
+
+<nav id="nav">
+  <button data-go="data">Data</button>
+  <button data-go="strategies">Strategies</button>
+  <button data-go="test">Test</button>
+  <button data-go="run">Run</button>
+  <button data-go="results">Results</button>
+  <button data-go="history">History</button>
+  <button data-go="settings">More</button>
+  <span class="keyhint">D S T R E H M</span>
+</nav>
+
+<!-- --------------------------------------------------------- RESULTS -->
+<section class="screen sheet" id="screen-results" hidden>
+  <div class="pad">
+    <div class="head">
+      <div>
+        <p class="label">Walkforward / Results</p>
+        <h1><span id="r-title">Stitched equity</span><span class="meta" id="r-meta">NQ · 1m</span></h1>
+        <p class="sub" id="r-sub">Out-of-sample segments only, joined end to end.</p>
+      </div>
+      <div class="hero-wrap">
+        <p class="label">Net OOS</p>
+        <div class="hero num" id="r-hero">—</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="tabs" id="viewseg">
+        <button data-view="curve" aria-pressed="true">Curve</button>
+        <button data-view="drawdown">Drawdown</button>
+        <button data-view="diverge">Diverge</button>
+        <button data-view="histogram">Histogram</button>
+      </div>
+      <div class="right">
+        <span class="label">Fold</span>
+        <span class="pick"><select id="foldpick"><option>All folds</option></select><i>▼</i></span>
+        <span class="label">Slice</span>
+        <span class="pick"><select id="slicepick">
+          <option>None</option><option>Time of day</option><option>Day of week</option>
+          <option>Year</option><option>Direction</option><option>Session</option>
+        </select><i>▼</i></span>
+        <button class="apply" id="applybtn">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <hr class="rule">
+
+  <div class="body">
+    <div class="chartcol" style="padding-left:40px">
+      <div id="chartbox"></div>
+      <div class="legend" id="r-legend"></div>
+    </div>
+    <aside class="rail">
+      <p class="label">Scope</p>
+      <h3 id="r-scope">All folds</h3>
+      <p class="span" id="r-span">—</p>
+      <dl id="r-rows"></dl>
+      <p class="note" id="r-note"></p>
+    </aside>
+  </div>
+
+  <hr class="rule tight">
+  <p class="foot" id="r-footnote"></p>
+  <hr class="rule tight">
+
+  <div class="pad padb"><div id="foldtable"></div></div>
+</section>
+
+<!-- ------------------------------------------------------------ DATA -->
+<section class="screen sheet" id="screen-data" hidden>
+  <div class="pad padb">
+    <p class="label">Data / Series</p>
+    <h1>Raw files and cached series</h1>
+    <p class="sub">Files are read off your disk and never uploaded. Importing normalises a
+      file to Parquet, infers its timezone from the CME session calendar, and reports what
+      it found before you rely on it.</p>
+    <div id="data-banner"></div>
+    <h2>Raw files</h2>
+    <div id="rawlist"></div>
+    <h2>Cached series</h2>
+    <div id="cachedlist"></div>
+    <div id="import-progress" style="margin-top:22px"></div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------ STRATEGIES -->
+<section class="screen sheet" id="screen-strategies" hidden>
+  <div class="pad padb">
+    <p class="label">Strategies / Register</p>
+    <h1>Add a strategy</h1>
+    <p class="sub">The folder stays where it is — nothing is copied, the app stores the path.
+      The eight-step intake runs end to end and shows you every step.</p>
+    <div class="drop" id="drop" style="margin-top:22px">
+      <strong>Drop a strategy folder here</strong>
+      <span>or paste its path below</span>
+    </div>
+    <div class="controls" style="margin-top:16px">
+      <input id="strategypath" placeholder="C:\path\to\your\strategy" spellcheck="false"
+             style="flex:1;min-width:340px;background:var(--ground);color:var(--text);border:1px solid var(--hairline);padding:10px 12px">
+      <button class="act" id="registerbtn">Register</button>
+    </div>
+    <div id="intake-progress" style="margin-top:20px"></div>
+    <h2>Registered</h2>
+    <div id="strategylist"></div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------ TEST -->
+<section class="screen sheet" id="screen-test" hidden>
+  <div class="pad padb">
+    <p class="label">Test / Walkforward</p>
+    <h1>Define the run</h1>
+    <p class="sub">Parameter ranges come from the strategy's own schema. Nothing here lives
+      in a config file you have to open.</p>
+    <div id="testfields" style="margin-top:22px"></div>
+    <div class="panel" style="margin-top:28px">
+      <div style="display:flex;gap:56px;flex-wrap:wrap;align-items:flex-start">
+        <div><p class="label">Grid</p><div class="hero num" id="gridsize">—</div></div>
+        <div><p class="label">Estimate</p><div class="hero num" id="estimate">—</div></div>
+      </div>
+      <div class="controls" style="margin-top:22px">
+        <button class="act" id="startbtn">Start the run</button>
+      </div>
+      <p class="dim" style="margin:18px 0 0">Slippage is the only cost applied. No commission
+        or fees — every P&amp;L figure is before brokerage.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------- RUN -->
+<section class="screen sheet" id="screen-run" hidden>
+  <div class="pad padb">
+    <p class="label">Run / Walkforward</p>
+    <h1 id="runtitle">Idle</h1>
+    <p class="sub">Folds are optimised in parallel across your cores. Cancelling stops after
+      the folds already finished, and the result says how many completed rather than
+      presenting a partial curve as a whole one.</p>
+    <div class="bar-track"><i id="runbar" style="width:0%"></i></div>
+    <div style="display:flex;gap:52px;flex-wrap:wrap;margin-bottom:20px">
+      <div><p class="label">Status</p><div id="runstate">idle</div></div>
+      <div><p class="label">Fold</p><div class="num" id="runfold">—</div></div>
+      <div><p class="label">Elapsed</p><div class="num" id="runelapsed">—</div></div>
+    </div>
+    <div class="controls" style="margin:0 0 18px">
+      <button class="ghost" id="cancelbtn" disabled>Cancel</button>
+      <button class="ghost" id="toresults" disabled>Open results</button>
+    </div>
+    <pre class="tape" id="runtape">Nothing has run yet in this session.</pre>
+  </div>
+</section>
+
+<!-- --------------------------------------------------------- HISTORY -->
+<section class="screen sheet" id="screen-history" hidden>
+  <div class="pad padb">
+    <p class="label">More / Run history</p>
+    <h1>Past runs</h1>
+    <p class="sub">Every completed run is saved with the configuration it was computed with.
+      Two runs computed differently are not directly comparable.</p>
+    <div id="historylist" style="margin-top:22px"></div>
+  </div>
+</section>
+
+<!-- -------------------------------------------------------- SETTINGS -->
+<section class="screen sheet" id="screen-settings" hidden>
+  <div class="pad padb">
+    <p class="label">More / Settings</p>
+    <h1>Execution</h1>
+    <p class="sub">Applied to every run from here on. Existing results keep the settings they
+      were computed with.</p>
+    <div id="settingsfields" style="margin-top:22px"></div>
+
+    <div class="panel" style="margin-top:28px">
+      <p class="label">Costs applied</p>
+      <div class="hero" id="costline" style="margin:6px 0 16px">—</div>
+      <p class="dim" style="margin:0 0 12px">No commission, no exchange fees. This engine does
+        not model per-contract costs at all, so every P&amp;L figure is before brokerage.</p>
+      <p class="caption" style="margin:0">Subtract your own rate: the Results rail reports the
+        break-even cost per side that would wipe the result out.</p>
+    </div>
+
+    <h2>Connection</h2>
+    <div class="panel">
+      <p class="dim" style="margin:0 0 14px">This page is the interface. The engine runs on your
+        own machine because a backtest here reads 3.3 million bars across 14 worker
+        processes — no hosted function can do that.</p>
+      <div class="field" style="border:0;padding-top:0">
+        <span class="label">Engine address</span>
+        <input id="engineurl" spellcheck="false">
+        <span class="caption">Change this only if you started the engine on another port.</span>
+      </div>
+      <div class="controls" style="margin:6px 0 0"><button class="ghost" id="reconnect">Reconnect</button></div>
+    </div>
+  </div>
+</section>
+
+<div id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
